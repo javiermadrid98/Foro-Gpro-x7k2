@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compromisos · Foro GPRO</title>
+<style>
+  :root{
+    --teal:#00778B; --navy:#253746; --gray:#8A97A0; --red:#D22630;
+    --green:#3B6E22; --gold:#EAAA00; --line:#E2E7EA; --zebra:#F6F8F9; --aqua:#64CCC9;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:Arial, sans-serif; background:#fff; color:var(--navy); padding:28px 40px;}
+  .kicker{color:var(--teal); font-weight:bold; font-size:13px; letter-spacing:3px; text-transform:uppercase;}
+  h1{font-size:28px; margin:4px 0 6px;}
+  .accents{display:flex; gap:6px; margin:6px 0 22px;}
+  .accents span{width:22px; height:6px; border-radius:2px;}
+  .topbar{display:flex; justify-content:space-between; align-items:flex-start;}
+  select#foro{font-family:Arial; font-size:14px; font-weight:bold; color:var(--navy);
+    border:1px solid var(--line); border-radius:20px; padding:8px 16px; background:#fff; cursor:pointer;}
+  .chips{display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:22px;}
+  .chip{border:1px solid var(--line); border-radius:10px; padding:12px 16px; background:#fff;}
+  .chip.total{background:var(--teal); border-color:var(--teal);}
+  .chip .lab{font-size:10px; font-weight:bold; letter-spacing:1.5px; color:var(--gray); text-transform:uppercase;}
+  .chip .num{font-size:26px; font-weight:bold; margin-top:2px;}
+  .chip.total .lab{color:#BFE3E8;} .chip.total .num{color:#fff;}
+  .num.c-cerrado{color:var(--green);} .num.c-endesarrollo{color:var(--teal);}
+  .num.c-atrasado{color:var(--red);} .num.c-informativo{color:var(--gray);}
+  .num.c-nuevo{color:var(--aqua);}
+  .cols{display:grid; grid-template-columns:2.1fr 1fr; gap:20px; align-items:start;}
+  .card{border:1px solid var(--line); border-radius:12px; padding:18px 20px;}
+  .card h2{color:var(--teal); font-size:12px; letter-spacing:2px; text-transform:uppercase; margin-bottom:14px;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{background:var(--teal); color:#fff; padding:8px 10px; text-align:left; font-size:11px;
+    letter-spacing:1px; text-transform:uppercase;}
+  thead th:first-child{border-radius:8px 0 0 8px;} thead th:last-child{border-radius:0 8px 8px 0;}
+  tbody td{padding:9px 10px; vertical-align:middle; border-bottom:1px solid var(--zebra);}
+  tbody tr:nth-child(odd){background:var(--zebra);}
+  .muted{color:var(--gray); font-size:11.5px; white-space:nowrap;}
+  .estado-btns{display:flex; gap:4px; flex-wrap:wrap;}
+  .estado-btns button{font-family:Arial; font-size:10px; font-weight:bold; border-radius:12px; cursor:pointer;
+    padding:4px 9px; border:1px solid var(--line); background:#fff; color:var(--gray); transition:all .15s;}
+  .estado-btns button:hover{border-color:var(--gray);}
+  .estado-btns button.on-cerrado{background:#E8F4EA; color:var(--green); border-color:#BFDCC5;}
+  .estado-btns button.on-endesarrollo{background:#DDEEF1; color:var(--teal); border-color:#B5D8DF;}
+  .estado-btns button.on-atrasado{background:#FBE5E8; color:var(--red); border-color:#F0BEC4;}
+  .estado-btns button.on-informativo{background:#EDF0F1; color:#5B6770; border-color:#D5DBDF;}
+  .estado-btns button.on-nuevo{background:#DFF4F3; color:#0E7F86; border-color:#AEE2E0;}
+  .resp-row{margin-bottom:12px;}
+  .resp-row .name{font-size:12px; font-weight:bold; display:flex; justify-content:space-between; margin-bottom:4px;}
+  .resp-row .name small{color:var(--gray); font-weight:normal;}
+  .bar{display:flex; height:12px; border-radius:6px; overflow:hidden; background:var(--zebra);}
+  .bar div{height:100%;}
+  .b-cerrado{background:var(--green);} .b-endesarrollo{background:var(--teal);}
+  .b-atrasado{background:var(--red);} .b-informativo{background:#9AA7AF;} .b-nuevo{background:var(--aqua);}
+  .legend{display:flex; gap:14px; margin-top:14px; font-size:10.5px; color:var(--gray); flex-wrap:wrap;}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px;}
+  .alerta{margin-top:14px; font-size:11.5px; color:var(--red); font-weight:bold;}
+  .foot{margin-top:18px; font-size:10.5px; color:var(--gray);}
+  button.reset{font-family:Arial; margin-left:12px; font-size:10.5px; border:none; background:none;
+    color:var(--teal); cursor:pointer; text-decoration:underline;}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <div class="kicker">Foro GPRO · Seguimiento</div>
+      <h1>Revisión de Compromisos</h1>
+      <div class="accents">
+        <span style="background:#00778B"></span><span style="background:#64CCC9"></span>
+        <span style="background:#4C8C2B"></span><span style="background:#EAAA00"></span>
+        <span style="background:#D22630"></span>
+      </div>
+    </div>
+    <select id="foro" onchange="render()"></select>
+  </div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="cols">
+    <div class="card">
+      <h2 id="tableTitle">Compromisos</h2>
+      <table>
+        <thead><tr><th>N°</th><th>Compromiso</th><th>Responsable</th><th>F. Inicio</th><th>F. Plan</th><th>Estado</th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Por responsable</h2>
+      <div id="resps"></div>
+      <div class="legend">
+        <span><i class="b-cerrado"></i>Cerrado</span><span><i class="b-endesarrollo"></i>En desarrollo</span>
+        <span><i class="b-atrasado"></i>Atrasado</span><span><i class="b-nuevo"></i>Nuevo</span>
+        <span><i class="b-informativo"></i>Informativo</span>
+      </div>
+      <div class="alerta" id="alerta"></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    Los cambios de estado se guardan automáticamente en este navegador (localStorage).
+    Para actualizar compromisos de un nuevo foro, editar el bloque DATA al final del archivo o pedírselo a Claude.
+    <button class="reset" onclick="resetForo()">Restablecer estados de este foro</button>
+  </div>
+
+<script>
+// ================= DATA =================
+// estados válidos: nuevo | endesarrollo | cerrado | atrasado | informativo
+const DATA = {
+  "Foro 28-07-2026": [
+    {n:"01", t:"Presentar en Comité Ctto. extensión plazo contrato Marco Ingeniería", r:"M. Campaña", fi:"19.05.26", fp:"08.07.26", e:"informativo"},
+    {n:"02", t:"Presentar en Comité Ctto. Servicio Apoyo Multidisciplinario GPRO", r:"M. Campaña", fi:"19.05.26", fp:"08.07.26", e:"informativo"},
+    {n:"03", t:"Gestionar recepción cable micrófono GPRO", r:"N. Vega", fi:"02.06.26", fp:"10.07.26", e:"endesarrollo"},
+    {n:"04", t:"Reactivar foro Finanzas / GPRO", r:"T. Brown", fi:"23.06.26", fp:"14.07.26", e:"endesarrollo"},
+    {n:"05", t:"Revisar con cliente (A. Velasquez) si se realizará proyecto Techo Decantadores", r:"E. Cabalín", fi:"07.07.26", fp:"—", e:"nuevo"},
+    {n:"06", t:"Verificar si es factible adelantar presupuesto del proyecto PLS-ILS del año 2027 al presente año", r:"E. Cabalín", fi:"14.07.26", fp:"28.07.26", e:"nuevo"},
+    {n:"07", t:"Generar reunión con Sigdo Koppers para revisar plan de cierre del contrato de construcción", r:"E. Leiva", fi:"14.07.26", fp:"28.07.26", e:"nuevo"},
+    {n:"08", t:"Generar reunión proyecto SCP Fase 3 (ingeniería y construcción) para abordar estrategia de ejecución", r:"E. Leiva / M. Campaña", fi:"14.07.26", fp:"28.07.26", e:"nuevo"},
+    {n:"09", t:"Definir ejecución de proyecto Barrio Cívico Mina", r:"E. Riveras", fi:"14.07.26", fp:"21.07.26", e:"nuevo"},
+    {n:"10", t:"Revisar con Operaciones el atravieso de caminos por la nueva zanja de PLS al interior de las Pilas", r:"E. Pino", fi:"14.07.26", fp:"28.07.26", e:"nuevo"},
+    {n:"11", t:"Buscar financiamiento con \"C3\" para la prefactibilidad del proyecto \"8 Pilas\"", r:"T. Brown / M. Campaña", fi:"14.07.26", fp:"28.07.26", e:"nuevo"},
+    {n:"12", t:"Regularización Aconex", r:"GPRO", fi:"21.07.26", fp:"28.07.26", e:"nuevo"}
+  ],
+  "Foro 21-07-2026 (ejemplo)": [
+    {n:"01", t:"Presentar en Comité Ctto. extensión plazo contrato Marco Ingeniería", r:"M. Campaña", fi:"19.05.26", fp:"08.07.26", e:"informativo"},
+    {n:"02", t:"Presentar en Comité Ctto. Servicio Apoyo Multidisciplinario GPRO", r:"M. Campaña", fi:"19.05.26", fp:"08.07.26", e:"informativo"},
+    {n:"03", t:"Gestionar recepción cable micrófono GPRO", r:"N. Vega", fi:"02.06.26", fp:"10.07.26", e:"endesarrollo"},
+    {n:"04", t:"Reactivar foro Finanzas / GPRO", r:"T. Brown", fi:"23.06.26", fp:"14.07.26", e:"endesarrollo"}
+  ]
+};
+// ========================================
+const ESTADOS = [
+  ["nuevo", "Nuevo"], ["endesarrollo", "En desarrollo"], ["cerrado", "Cerrado"],
+  ["atrasado", "Atrasado"], ["informativo", "Informativo"]
+];
+const LBL = Object.fromEntries(ESTADOS);
+const sel = document.getElementById('foro');
+Object.keys(DATA).forEach(k => sel.add(new Option(k, k)));
+
+function key(){ return 'foroGPRO::' + sel.value; }
+function getEstados(){
+  const base = {}; DATA[sel.value].forEach(c => base[c.n] = c.e);
+  try{ return Object.assign(base, JSON.parse(localStorage.getItem(key()) || '{}')); }
+  catch(e){ return base; }
+}
+function setEstado(n, e){
+  const cur = JSON.parse(localStorage.getItem(key()) || '{}');
+  cur[n] = e; localStorage.setItem(key(), JSON.stringify(cur)); render();
+}
+function resetForo(){ localStorage.removeItem(key()); render(); }
+
+function render(){
+  const items = DATA[sel.value], est = getEstados();
+  document.getElementById('tableTitle').textContent = 'Compromisos · ' + sel.value;
+  // tabla
+  const tb = document.getElementById('tbody'); tb.innerHTML = '';
+  items.forEach(c => {
+    const tr = document.createElement('tr');
+    const btns = ESTADOS.map(([id, lbl]) =>
+      `<button class="${est[c.n] === id ? 'on-' + id : ''}" onclick="setEstado('${c.n}','${id}')">${lbl}</button>`).join('');
+    tr.innerHTML = `<td class="muted">${c.n}</td><td>${c.t}</td><td style="white-space:nowrap">${c.r}</td>` +
+      `<td class="muted">${c.fi}</td><td class="muted">${c.fp}</td><td><div class="estado-btns">${btns}</div></td>`;
+    tb.appendChild(tr);
+  });
+  // chips
+  const count = id => items.filter(c => est[c.n] === id).length;
+  document.getElementById('chips').innerHTML =
+    `<div class="chip total"><div class="lab">Total compromisos</div><div class="num">${items.length}</div></div>` +
+    ESTADOS.map(([id, lbl]) =>
+      `<div class="chip"><div class="lab">${lbl}${id === 'nuevo' ? 's' : 's'}</div><div class="num c-${id}">${count(id)}</div></div>`
+    ).join('').replace('En desarrollos', 'En desarrollo').replace('Atrasados', 'Atrasados');
+  // por responsable
+  const resp = {};
+  items.forEach(c => c.r.split('/').map(s => s.trim()).forEach(r => {
+    (resp[r] = resp[r] || []).push(est[c.n]);
+  }));
+  const max = Math.max(...Object.values(resp).map(v => v.length));
+  const box = document.getElementById('resps'); box.innerHTML = '';
+  Object.entries(resp).sort((a, b) => b[1].length - a[1].length).forEach(([r, lst]) => {
+    const seg = ESTADOS.map(([id]) => {
+      const q = lst.filter(x => x === id).length;
+      return q ? `<div class="b-${id}" style="width:${q / max * 100}%"></div>` : '';
+    }).join('');
+    const atr = lst.filter(x => x === 'atrasado').length;
+    const det = lst.length + (lst.length === 1 ? ' compromiso' : ' compromisos') + (atr ? ` · ${atr} atrasado${atr > 1 ? 's' : ''}` : '');
+    box.insertAdjacentHTML('beforeend',
+      `<div class="resp-row"><div class="name"><span>${r}</span><small>${det}</small></div><div class="bar">${seg}</div></div>`);
+  });
+  // alerta
+  const atrTot = items.filter(c => est[c.n] === 'atrasado');
+  document.getElementById('alerta').textContent = atrTot.length
+    ? `⚠ ${atrTot.length} compromiso${atrTot.length > 1 ? 's' : ''} atrasado${atrTot.length > 1 ? 's' : ''}: N° ${atrTot.map(c => c.n).join(', ')}`
+    : '';
+}
+render();
+</script>
+</body>
+</html>
