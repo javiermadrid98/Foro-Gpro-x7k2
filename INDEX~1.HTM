@@ -17,6 +17,9 @@
   .accents span{width:22px; height:6px; border-radius:2px;}
   .topbar{display:flex; justify-content:space-between; align-items:flex-start;}
   .topctrl{display:flex; gap:10px; align-items:center;}
+  .zoomctl{display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:20px; padding:4px 8px;}
+  .zoomctl button{font-family:Arial; border:none; background:none; color:var(--teal); font-weight:bold; font-size:15px; cursor:pointer; width:22px;}
+  .zoomctl span{font-size:11px; color:var(--gray); min-width:34px; text-align:center;}
   select#foro{font-family:Arial; font-size:13px; font-weight:bold; color:var(--navy);
     border:1px solid var(--line); border-radius:20px; padding:8px 14px; background:#fff; cursor:pointer; max-width:260px;}
   .btn-add{font-family:Arial; font-size:13px; font-weight:bold; color:#fff; background:var(--teal);
@@ -113,6 +116,7 @@
       </div>
     </div>
     <div class="topctrl">
+      <div class="zoomctl" title="Zoom de la vista"><button onclick="setZoom(-0.05)">−</button><span id="zoomlab"></span><button onclick="setZoom(0.05)">+</button></div>
       <button class="btn-add" onclick="toggleForm()">＋ Agregar Nuevo Compromiso</button>
       <select id="foro" onchange="render()"></select>
     </div>
@@ -259,6 +263,20 @@ function resetTodo(){
   render();
 }
 
+// ---------- zoom (se guarda por equipo/navegador) ----------
+let ZOOM = parseFloat(localStorage.getItem('foroZoom') || '0') || (window.innerWidth < 1100 ? 0.7 : 1);
+function applyZoom(){
+  document.body.style.zoom = ZOOM;
+  const el = document.getElementById('zoomlab');
+  if(el) el.textContent = Math.round(ZOOM * 100) + '%';
+}
+function setZoom(d){
+  ZOOM = Math.min(1.3, Math.max(0.5, Math.round((ZOOM + d) * 100) / 100));
+  localStorage.setItem('foroZoom', ZOOM);
+  applyZoom();
+}
+applyZoom();
+
 // ---------- utilidades ----------
 const pf = f => { const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(f || ''); return m ? '20' + m[3] + '-' + m[2] + '-' + m[1] : null; };
 const dias = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
@@ -271,7 +289,7 @@ function newPerson(ctx){
   const cont = ctx === 'form' ? document.getElementById('f_plist') : document.querySelector('#pop .chk');
   const lab = document.createElement('label');
   lab.innerHTML = `<input type="checkbox" value="${v}" checked ${ctx === 'form' ? 'onchange="updRespBox()"' : ''}>${v}`;
-  cont.insertBefore(lab, inp.parentElement);
+  inp.parentElement.insertAdjacentElement('afterend', lab);
   inp.value = '';
   if(ctx === 'form') updRespBox();
 }
@@ -323,9 +341,10 @@ function toggleForm(){
   const f = document.getElementById('addForm');
   f.style.display = f.style.display === 'block' ? 'none' : 'block';
   if(f.style.display === 'block'){
-    document.getElementById('f_plist').innerHTML = peopleList().map(p =>
-      `<label><input type="checkbox" value="${p}" onchange="updRespBox()">${p}</label>`).join('') +
-      `<div class="addp"><input id="np_form" placeholder="Otro responsable…"><button type="button" onclick="newPerson('form')">+</button></div>`;
+    document.getElementById('f_plist').innerHTML =
+      `<div class="addp" style="margin:0 0 8px; padding:0 0 8px; border-top:none; border-bottom:1px solid var(--zebra);"><input id="np_form" placeholder="✚ Agregar otro responsable…"><button type="button" onclick="newPerson('form')">+</button></div>` +
+      peopleList().map(p =>
+      `<label><input type="checkbox" value="${p}" onchange="updRespBox()">${p}</label>`).join('');
     updRespBox();
     document.getElementById('f_fp').value = '';
   }
@@ -366,16 +385,16 @@ function editComp(ev, n){
   pop.innerHTML =
     `<div class="flab">Compromiso</div><textarea id="e_t">${c.t}</textarea>` +
     `<div class="flab">Responsable(s)</div><div class="chk">` +
+    `<div class="addp" style="margin:0 0 8px; padding:0 0 8px; border-top:none; border-bottom:1px solid var(--zebra);"><input id="np_pop" placeholder="✚ Agregar otro responsable…"><button type="button" onclick="newPerson('pop')">+</button></div>` +
     peopleList().map(p => `<label><input type="checkbox" value="${p}" ${curResp.includes(p) ? 'checked' : ''}>${p}</label>`).join('') +
-    `<div class="addp"><input id="np_pop" placeholder="Otro responsable…"><button type="button" onclick="newPerson('pop')">+</button></div>` +
     `</div>` +
     `<div class="flab">F. Inicio</div><input type="date" id="e_fi" value="${pf(c.fi) || ''}">` +
     `<div class="flab">F. Plan</div><input type="date" id="e_fp" value="${pf(c.fp) || ''}">` +
     `<button class="okbtn" onclick="saveComp('${n}')">Guardar cambios</button>`;
   pop.style.display = 'block';
   pop.style.minWidth = '300px';
-  pop.style.left = Math.min(ev.pageX - 150, window.innerWidth - 340) + 'px';
-  pop.style.top = (ev.pageY + 10) + 'px';
+  pop.style.left = Math.min(ev.pageX / ZOOM - 150, window.innerWidth / ZOOM - 340) + 'px';
+  pop.style.top = (ev.pageY / ZOOM + 10) + 'px';
 }
 function saveComp(n){
   const ddmmaa = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(2, 4) : null;
