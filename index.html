@@ -158,6 +158,7 @@
   </div>
 
   <div class="foot">
+    <span id="sync" style="font-weight:bold"></span> ·
     Los cerrados dejan de mostrarse en los foros siguientes; pendientes y en progreso se arrastran automáticamente,
     ordenados del más antiguo al más reciente. Usa el lápiz ✎ para editar compromiso, responsables y fechas; la ✕ elimina.
     <button class="reset" onclick="resetTodo()">Restablecer todo</button>
@@ -165,6 +166,8 @@
 
   <div id="pop"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 // ============ PARTICIPANTES DEL FORO (editar aquí) ============
 const PARTICIPANTES = ["J. Madrid","T. Brown","E. Leiva","E. Cabalín","E. Pino","M. Campaña",
@@ -213,10 +216,48 @@ FOROS.forEach(f => sel.add(new Option(f.lbl, f.iso)));
   sel.value = pick;
 })();
 
-const store = (k, v) => localStorage.setItem('foroGPROv3::' + k, JSON.stringify(v));
-const read  = (k, d) => { try{ return JSON.parse(localStorage.getItem('foroGPROv3::' + k)) ?? d; }catch(e){ return d; } };
+// ---------- persistencia compartida en la nube (Firebase) ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyDN2_g8EgN-ltjl95mhE7z98OudGv6agM0",
+  authDomain: "foro-gpro.firebaseapp.com",
+  databaseURL: "https://foro-gpro-default-rtdb.firebaseio.com",
+  projectId: "foro-gpro",
+  storageBucket: "foro-gpro.firebasestorage.app",
+  messagingSenderId: "269317341048",
+  appId: "1:269317341048:web:8cf7179ed35ffb4aa8128d"
+};
+const DB_PATH = 'foroGPRO-x7k2';
+let CLOUD = {}, dbref = null;
+try{
+  firebase.initializeApp(firebaseConfig);
+  dbref = firebase.database().ref(DB_PATH);
+}catch(e){ console.warn('Firebase no disponible; usando almacenamiento local.', e); }
+const store = (k, v) => {
+  CLOUD[k] = v;
+  if(dbref) dbref.child(k).set(v).catch(() => setSync(false));
+  else localStorage.setItem('foroGPROv3::' + k, JSON.stringify(v));
+};
+const read = (k, d) => {
+  if(dbref) return CLOUD[k] ?? d;
+  try{ return JSON.parse(localStorage.getItem('foroGPROv3::' + k)) ?? d; }catch(e){ return d; }
+};
+function setSync(ok){
+  const el = document.getElementById('sync');
+  if(el){ el.textContent = ok ? '● nube sincronizada' : '● sin conexión a la nube (cambios no compartidos)';
+          el.style.color = ok ? '#3B6E22' : '#D22630'; }
+}
+if(dbref){
+  dbref.on('value', snap => {
+    CLOUD = snap.val() || {};
+    if(CLOUD.extra && !Array.isArray(CLOUD.extra)) CLOUD.extra = Object.values(CLOUD.extra);
+    setSync(true);
+    render();
+  }, () => setSync(false));
+}
 function resetTodo(){
-  if(!confirm('¿Borrar todos los estados y compromisos agregados?')) return;
+  if(!confirm('¿Borrar todos los estados y compromisos agregados? Afecta a TODOS los usuarios.')) return;
+  CLOUD = {};
+  if(dbref) dbref.remove();
   ['est','extra','resp','del','fp','fi','t'].forEach(k => localStorage.removeItem('foroGPROv3::' + k));
   render();
 }
