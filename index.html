@@ -59,6 +59,7 @@
   .estado-btns button.on-pendiente{background:var(--red); color:#fff; border-color:var(--red);}
   .estado-btns button.on-progreso{background:var(--gold); color:var(--navy); border-color:var(--gold);}
   .estado-btns button.on-cerrado{background:var(--green); color:#fff; border-color:var(--green);}
+  .estado-btns button.on-informativo{background:var(--gray); color:#fff; border-color:var(--gray); padding:3px 16px;}
   .del{color:var(--red); cursor:pointer; font-weight:bold; padding:0 4px;}
   .donut-wrap{display:flex; align-items:center; gap:14px;}
   .donut-center{font-size:11px; fill:var(--gray);}
@@ -70,7 +71,7 @@
   .resp-row .name small{color:var(--gray); font-weight:normal; font-size:10px;}
   .bar{display:flex; height:8px; border-radius:4px; overflow:hidden; background:var(--zebra);}
   .bar div{height:100%;}
-  .b-pendiente{background:var(--red);} .b-progreso{background:var(--gold);} .b-cerrado{background:var(--green);}
+  .b-pendiente{background:var(--red);} .b-progreso{background:var(--gold);} .b-cerrado{background:var(--green);} .b-informativo{background:#B9C2C8;}
   .venc{font-size:11px; line-height:1.5; margin-bottom:7px; display:flex; justify-content:space-between; gap:8px;}
   .venc b{color:var(--red); white-space:nowrap;}
   #addForm{display:none; border:1px solid var(--teal); border-radius:12px; padding:14px 18px; margin-bottom:16px; background:#F4FAFB;}
@@ -170,7 +171,7 @@
   <div class="foot">
     <span id="sync" style="font-weight:bold"></span> ·
     Los cerrados dejan de mostrarse en los foros siguientes; pendientes y en progreso se arrastran automáticamente,
-    ordenados del más antiguo al más reciente. Usa el lápiz ✎ para editar compromiso, responsables y fechas; la ✕ elimina.
+    ordenados del más antiguo al más reciente. Usa el lápiz ✎ para editar; la ✕ elimina. Clic sobre el estado ya seleccionado lo marca como ℹ Informativo (y viceversa).
     <button class="reset" onclick="resetTodo()">Restablecer todo</button>
   </div>
 
@@ -215,6 +216,7 @@ const BASE = [
 ];
 // =====================================================
 const ESTADOS = [["pendiente","Pendiente","#D22630"],["progreso","En Progreso","#EAAA00"],["cerrado","Cerrado","#3B6E22"]];
+const ALLSTATES = ESTADOS.concat([["informativo","Informativo","#8A97A0"]]);
 
 // ---------- persistencia compartida en la nube (Firebase) ----------
 const firebaseConfig = {
@@ -318,13 +320,22 @@ function items(){
     if(c.foro > F) return;                                  // aún no existía
     if(c.e === 'cerrado' && c.closedAt && c.closedAt < F) return;  // cerrado antes: no se arrastra
     c.esNuevo = (c.foro === F);
-    c.atraso = (c.e !== 'cerrado' && pf(c.fp) && pf(c.fp) < F) ? dias(pf(c.fp), F) : 0;
+    c.atraso = (!['cerrado','informativo'].includes(c.e) && pf(c.fp) && pf(c.fp) < F) ? dias(pf(c.fp), F) : 0;
     out.push(c);
   });
-  out.sort((a, b) => (a.e === 'cerrado') - (b.e === 'cerrado') || (pf(a.fi) || a.foro).localeCompare(pf(b.fi) || b.foro));
+  const rank = c => c.e === 'cerrado' ? 2 : (c.e === 'informativo' ? 1 : 0);
+  out.sort((a, b) => rank(a) - rank(b) || (pf(a.fi) || a.foro).localeCompare(pf(b.fi) || b.foro));
   return out;
 }
+function curEstado(n){
+  const m = read('est', {});
+  if(m[n]) return m[n].e;
+  const b = BASE.find(c => c.n === n) || read('extra', []).find(c => c.n === n);
+  return b ? b.e : 'pendiente';
+}
 function setEstado(n, e){
+  const cur = curEstado(n);
+  if(cur === e) e = (e === 'informativo') ? 'pendiente' : 'informativo';  // doble clic -> informativo; informativo de nuevo -> pendiente
   const m = read('est', {});
   m[n] = {e, closedAt: e === 'cerrado' ? sel.value : null};
   store('est', m); render();
@@ -422,8 +433,10 @@ function render(){
   // tabla
   const tb = document.getElementById('tbody'); tb.innerHTML = '';
   all.forEach((c, idx) => {
-    const btns = ESTADOS.map(([id, lbl]) =>
-      `<button class="${c.e === id ? 'on-' + id : ''}" onclick="setEstado('${c.n}','${id}')">${lbl}</button>`).join('');
+    const btns = c.e === 'informativo'
+      ? `<button class="on-informativo" title="Clic para volver a Pendiente" onclick="setEstado('${c.n}','informativo')">ℹ Informativo</button>`
+      : ESTADOS.map(([id, lbl]) =>
+      `<button class="${c.e === id ? 'on-' + id : ''}" title="${c.e === id ? 'Clic de nuevo para marcar Informativo' : ''}" onclick="setEstado('${c.n}','${id}')">${lbl}</button>`).join('');
     const del = `<span class="del" title="Eliminar compromiso" onclick="delComp('${c.n}', ${c.extraIdx !== undefined ? c.extraIdx : 'undefined'})">✕</span>`;
     const acts = `<div class="rowacts"><span class="edit" title="Editar compromiso" onclick="editComp(event,'${c.n}')">✎</span>${del}</div>`;
     const badge = c.esNuevo ? '<span class="badge-new">NUEVO</span>' : '';
@@ -450,7 +463,7 @@ function render(){
   const R = 48, CX = 65, CY = 65, CIRC = 2 * Math.PI * R;
   const pct = all.length ? Math.round(q('cerrado') / all.length * 100) : 0;
   let off = 0, segs = '';
-  ESTADOS.forEach(([id, , col]) => {
+  ALLSTATES.forEach(([id, , col]) => {
     const frac = all.length ? q(id) / all.length : 0;
     if(frac > 0){
       segs += `<circle r="${R}" cx="${CX}" cy="${CY}" fill="none" stroke="${col}" stroke-width="16" ` +
@@ -461,7 +474,7 @@ function render(){
   svg.innerHTML = `<circle r="${R}" cx="${CX}" cy="${CY}" fill="none" stroke="#F6F8F9" stroke-width="16"></circle>` + segs +
     `<text x="${CX}" y="${CY - 2}" text-anchor="middle" class="donut-num">${pct}%</text>` +
     `<text x="${CX}" y="${CY + 14}" text-anchor="middle" class="donut-center">cierre</text>`;
-  document.getElementById('dleg').innerHTML = ESTADOS.map(([id, lbl, col]) =>
+  document.getElementById('dleg').innerHTML = ALLSTATES.map(([id, lbl, col]) =>
     `<div><i style="background:${col}"></i>${lbl}: <b>${q(id)}</b></div>`).join('');
   // por responsable
   const resp = {};
@@ -469,7 +482,7 @@ function render(){
   const max = Math.max(1, ...Object.values(resp).map(v => v.length));
   document.getElementById('resps').innerHTML = Object.entries(resp)
     .sort((a, b) => b[1].length - a[1].length).map(([r, lst]) => {
-      const seg = ESTADOS.map(([id, , col]) => {
+      const seg = ALLSTATES.map(([id, , col]) => {
         const k = lst.filter(x => x === id).length;
         return k ? `<div class="b-${id}" style="width:${k / max * 100}%"></div>` : '';
       }).join('');
@@ -478,7 +491,7 @@ function render(){
         `<small>${lst.length}${pend ? ' · ' + pend + ' pend.' : ''}</small></div><div class="bar">${seg}</div></div>`;
     }).join('');
   // próximos vencimientos
-  const pend = all.filter(c => c.e !== 'cerrado' && pf(c.fp)).sort((a, b) => pf(a.fp).localeCompare(pf(b.fp))).slice(0, 5);
+  const pend = all.filter(c => !['cerrado','informativo'].includes(c.e) && pf(c.fp)).sort((a, b) => pf(a.fp).localeCompare(pf(b.fp))).slice(0, 5);
   document.getElementById('vencs').innerHTML = pend.length
     ? pend.map(c => `<div class="venc"><span>${c.t.slice(0, 52)}${c.t.length > 52 ? '…' : ''}</span><b>${c.fp}</b></div>`).join('')
     : '<div class="muted">Sin vencimientos pendientes</div>';
