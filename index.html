@@ -493,4 +493,10 @@ function render(){
   // próximos vencimientos
   const pend = all.filter(c => !['cerrado','informativo'].includes(c.e) && pf(c.fp)).sort((a, b) => pf(a.fp).localeCompare(pf(b.fp))).slice(0, 5);
   document.getElementById('vencs').innerHTML = pend.length
-    ? pend.map(c => `<div class="venc"><span>${c.t.slice(0, 52)}${c.t.length > 52 ? '…' : ''}</span><b>
+    ? pend.map(c => `<div class="venc"><span>${c.t.slice(0, 52)}${c.t.length > 52 ? '…' : ''}</span><b>${c.fp}</b></div>`).join('')
+    : '<div class="muted">Sin vencimientos pendientes</div>';
+}
+render();
+</script>
+</body>
+</html>
