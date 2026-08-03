@@ -83,21 +83,26 @@
   .respPick .box{font-size:12px; padding:7px 9px; border:1px solid var(--line); border-radius:8px;
     background:#fff; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px;}
   .plist{display:none; position:absolute; top:108%; left:0; z-index:30; background:#fff; border:1px solid var(--line);
-    border-radius:10px; box-shadow:0 6px 18px rgba(37,55,70,.15); padding:12px 14px; max-height:260px; overflow:auto; min-width:240px;}
+    border-radius:10px; box-shadow:0 6px 18px rgba(37,55,70,.15); padding:12px 14px; max-height:260px; overflow:auto; min-width:260px;}
   .plist label{display:flex; align-items:center; gap:10px; font-size:12px; font-weight:normal; color:var(--navy); text-transform:none; margin:2px 0; padding:5px 8px; border-radius:6px; cursor:pointer;}
   .plist label:hover{background:#F4FAFB;}
   #addForm .plist input, .plist input{width:auto !important; margin:0; flex:0 0 auto;}
+  .pact{margin-left:auto; display:flex; gap:7px; visibility:hidden;}
+  label:hover .pact{visibility:visible;}
+  .pact span{cursor:pointer; font-size:11px; color:var(--gray);}
+  .pact span:hover{color:var(--teal);}
+  .pact span.px:hover{color:var(--red);}
   .addp{display:flex; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid var(--zebra);}
   .addp input{flex:1 !important; min-width:0; font-family:Arial; font-size:11.5px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; width:auto !important;}
   .addp button{background:var(--teal); color:#fff; border:none; border-radius:8px; width:28px; font-weight:bold; cursor:pointer;}
   #pop{display:none; position:absolute; z-index:40; background:#fff; border:1px solid var(--line); border-radius:10px;
-    box-shadow:0 6px 18px rgba(37,55,70,.2); padding:10px 12px; max-height:300px; overflow:auto; min-width:200px;}
-  #pop label{display:block; font-size:12px; margin:5px 0; cursor:pointer;}
-  #pop .flab{font-weight:bold; color:var(--teal); font-size:10px; letter-spacing:1px; text-transform:uppercase; margin:10px 0 4px; cursor:default;}
+    box-shadow:0 6px 18px rgba(37,55,70,.2); padding:10px 12px; max-height:320px; overflow:auto; min-width:200px;}
+  #pop label{display:flex; align-items:center; gap:8px; font-size:12px; margin:5px 0; cursor:pointer;}
+  #pop .flab{font-weight:bold; color:var(--teal); font-size:10px; letter-spacing:1px; text-transform:uppercase; margin:10px 0 4px; cursor:default; display:block;}
   #pop textarea, #pop input[type=date]{font-family:Arial; font-size:12px; padding:6px 8px; border:1px solid var(--line); border-radius:8px; width:100%;}
   #pop textarea{resize:vertical; min-height:56px;}
   #pop .chk{max-height:150px; overflow:auto; border:1px solid var(--zebra); border-radius:8px; padding:4px 8px;}
-  #pop input{margin-right:7px;}
+  #pop input{margin-right:0;}
   #pop .okbtn{margin-top:8px; width:100%; background:var(--teal); color:#fff; border:none; border-radius:8px;
     padding:6px; font-weight:bold; cursor:pointer; font-family:Arial;}
   .foot{margin-top:16px; font-size:10.5px; color:var(--gray);}
@@ -170,7 +175,7 @@
 
   <div class="foot">
     <span id="sync" style="font-weight:bold"></span> ·
-    Los informativos van siempre al inicio. Cambiar un estado no mueve la fila: los cerrados mantienen su posición y simplemente se omiten en los foros siguientes; pendientes y en progreso se arrastran. Usa el lápiz ✎ para editar; la ✕ elimina. Clic sobre el estado ya seleccionado lo marca como ℹ Informativo (y viceversa).
+    Los informativos van siempre al inicio. Los cerrados quedan visibles en su foro y se omiten en los siguientes; pendientes y en progreso se arrastran ordenados del más antiguo al más reciente. Lápiz ✎ para editar (incluye destacar NUEVO); ✕ elimina. Clic sobre el estado ya marcado = ℹ Informativo. En la lista de responsables, pasa el mouse sobre un nombre para renombrar ✎ o quitar ✕.
     <button class="reset" onclick="resetTodo()">Restablecer todo</button>
   </div>
 
@@ -179,7 +184,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
-// ============ PARTICIPANTES DEL FORO (editar aquí; también se pueden agregar desde la página) ============
+// ============ PARTICIPANTES INICIALES (la lista viva se administra desde la página) ============
 const PARTICIPANTES = ["J. Madrid","T. Brown","E. Leiva","E. Cabalín","E. Pino","M. Campaña",
   "L. Rojas","E. Riveras","N. Vega","F. Lagos","GPRO"];
 
@@ -228,19 +233,29 @@ const firebaseConfig = {
   appId: "1:269317341048:web:8cf7179ed35ffb4aa8128d"
 };
 const DB_PATH = 'foroGPRO-x7k2';
+const LSK = 'foroGPROv3::';
 let CLOUD = {}, dbref = null;
 try{
   firebase.initializeApp(firebaseConfig);
   dbref = firebase.database().ref(DB_PATH);
 }catch(e){ console.warn('Firebase no disponible; usando almacenamiento local.', e); }
+// escribe una lista completa (extras, participantes)
 const store = (k, v) => {
   CLOUD[k] = v;
   if(dbref) dbref.child(k).set(v).catch(() => setSync(false));
-  else localStorage.setItem('foroGPROv3::' + k, JSON.stringify(v));
+  else localStorage.setItem(LSK + k, JSON.stringify(v));
+};
+// escribe UNA SOLA entrada de un mapa (evita que una vista con datos viejos pise los cambios de otra)
+const storeKey = (map, n, v) => {
+  const m = read(map, {});
+  m[n] = v;
+  CLOUD[map] = m;
+  if(dbref) dbref.child(map).child(n).set(v).catch(() => setSync(false));
+  else localStorage.setItem(LSK + map, JSON.stringify(m));
 };
 const read = (k, d) => {
   if(dbref) return CLOUD[k] ?? d;
-  try{ return JSON.parse(localStorage.getItem('foroGPROv3::' + k)) ?? d; }catch(e){ return d; }
+  try{ return JSON.parse(localStorage.getItem(LSK + k)) ?? d; }catch(e){ return d; }
 };
 function setSync(ok){
   const el = document.getElementById('sync');
@@ -252,6 +267,7 @@ if(dbref){
     CLOUD = snap.val() || {};
     if(CLOUD.extra && !Array.isArray(CLOUD.extra)) CLOUD.extra = Object.values(CLOUD.extra);
     if(CLOUD.ppl && !Array.isArray(CLOUD.ppl)) CLOUD.ppl = Object.values(CLOUD.ppl);
+    if(CLOUD.plist && !Array.isArray(CLOUD.plist)) CLOUD.plist = Object.values(CLOUD.plist);
     setSync(true);
     render();
   }, () => setSync(false));
@@ -260,7 +276,7 @@ function resetTodo(){
   if(!confirm('¿Borrar todos los estados y compromisos agregados? Afecta a TODOS los usuarios.')) return;
   CLOUD = {};
   if(dbref) dbref.remove();
-  ['est','extra','resp','del','fp','fi','t','ppl'].forEach(k => localStorage.removeItem('foroGPROv3::' + k));
+  ['est','extra','resp','del','fp','fi','t','ppl','plist','nuevo'].forEach(k => localStorage.removeItem(LSK + k));
   render();
 }
 
@@ -281,19 +297,67 @@ applyZoom();
 // ---------- utilidades ----------
 const pf = f => { const m = /^(\d{2})\.(\d{2})\.(\d{2})$/.exec(f || ''); return m ? '20' + m[3] + '-' + m[2] + '-' + m[1] : null; };
 const dias = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
-function peopleList(){ return PARTICIPANTES.concat(read('ppl', []).filter(p => !PARTICIPANTES.includes(p))); }
+const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+// ---------- responsables (lista viva compartida: agregar, renombrar, quitar) ----------
+function peopleList(){
+  const pl = read('plist', null);
+  if(pl && pl.length) return pl;
+  return PARTICIPANTES.concat(read('ppl', []).filter(p => !PARTICIPANTES.includes(p)));
+}
+function personRow(p, i, ctx, checked){
+  const onch = ctx === 'form' ? 'onchange="updRespBox()"' : '';
+  return `<label><input type="checkbox" value="${esc(p)}" ${checked ? 'checked' : ''} ${onch}>${esc(p)}` +
+    `<span class="pact"><span title="Renombrar" onclick="event.preventDefault(); event.stopPropagation(); renamePerson(${i},'${ctx}')">✎</span>` +
+    `<span class="px" title="Quitar de la lista" onclick="event.preventDefault(); event.stopPropagation(); removePerson(${i},'${ctx}')">✕</span></span></label>`;
+}
+function listHTML(ctx, checkedList){
+  const addId = ctx === 'form' ? 'np_form' : 'np_pop';
+  return `<div class="addp" style="margin:0 0 8px; padding:0 0 8px; border-top:none; border-bottom:1px solid var(--zebra);">` +
+    `<input id="${addId}" placeholder="✚ Agregar otro responsable…"><button type="button" onclick="newPerson('${ctx}')">+</button></div>` +
+    peopleList().map((p, i) => personRow(p, i, ctx, checkedList.includes(p))).join('');
+}
+function checkedOf(ctx){
+  const sel = ctx === 'form' ? '#f_plist input[type=checkbox]:checked' : '#pop .chk input[type=checkbox]:checked';
+  return [...document.querySelectorAll(sel)].map(i => i.value);
+}
+function refreshList(ctx, checkedList){
+  const cont = ctx === 'form' ? document.getElementById('f_plist') : document.querySelector('#pop .chk');
+  if(cont) cont.innerHTML = listHTML(ctx, checkedList);
+  if(ctx === 'form') updRespBox();
+}
 function newPerson(ctx){
   const inp = document.getElementById(ctx === 'form' ? 'np_form' : 'np_pop');
   const v = (inp.value || '').trim();
   if(!v) return;
-  if(!peopleList().includes(v)){ const ppl = read('ppl', []); ppl.push(v); store('ppl', ppl); }
-  const cont = ctx === 'form' ? document.getElementById('f_plist') : document.querySelector('#pop .chk');
-  const lab = document.createElement('label');
-  lab.innerHTML = `<input type="checkbox" value="${v}" checked ${ctx === 'form' ? 'onchange="updRespBox()"' : ''}>${v}`;
-  inp.parentElement.insertAdjacentElement('afterend', lab);
-  inp.value = '';
-  if(ctx === 'form') updRespBox();
+  const marcados = checkedOf(ctx).concat([v]);
+  if(!peopleList().includes(v)) store('plist', peopleList().concat([v]));
+  refreshList(ctx, marcados);
 }
+function renamePerson(i, ctx){
+  const old = peopleList()[i];
+  const nu = prompt('Nuevo nombre para "' + old + '":', old);
+  if(!nu || !nu.trim() || nu.trim() === old) return;
+  const v = nu.trim();
+  const marcados = checkedOf(ctx).map(p => p === old ? v : p);
+  store('plist', peopleList().map(p => p === old ? v : p));
+  // actualiza los compromisos que lo tienen asignado
+  const respMap = read('resp', {});
+  BASE.concat(read('extra', [])).forEach(c => {
+    const cur = (respMap[c.n] || c.r).split('/').map(s => s.trim());
+    if(cur.includes(old)) storeKey('resp', c.n, cur.map(p => p === old ? v : p).join(' / '));
+  });
+  refreshList(ctx, marcados);
+  render();
+}
+function removePerson(i, ctx){
+  const p = peopleList()[i];
+  if(!confirm('¿Quitar a "' + p + '" de la lista? (no modifica los compromisos ya asignados)')) return;
+  const marcados = checkedOf(ctx).filter(x => x !== p);
+  store('plist', peopleList().filter(x => x !== p));
+  refreshList(ctx, marcados);
+}
+
 const sel = document.getElementById('foro');
 FOROS.forEach(f => sel.add(new Option(f.lbl, f.iso)));
 (function(){
@@ -306,7 +370,7 @@ FOROS.forEach(f => sel.add(new Option(f.lbl, f.iso)));
 // ---------- modelo ----------
 function items(){
   const F = sel.value;
-  const est = read('est', {}), resp = read('resp', {});
+  const est = read('est', {}), resp = read('resp', {}), nvo = read('nuevo', {});
   const all = BASE.map(c => ({...c})).concat(read('extra', []).map((c, i) => ({...c, extraIdx: i})));
   const out = [];
   all.forEach(c => {
@@ -317,8 +381,10 @@ function items(){
     const fio = read('fi', {}); if(fio[c.n]) c.fi = fio[c.n];
     const tto = read('t', {});  if(tto[c.n]) c.t = tto[c.n];
     if(c.foro > F) return;                                  // aún no existía
-    if(c.e === 'cerrado' && c.closedAt && c.closedAt < F) return;  // cerrado antes: no se arrastra
-    c.esNuevo = (c.foro === F);
+    // cerrado: visible en el foro donde se cerró; omitido en los siguientes
+    if(c.e === 'cerrado' && c.closedAt && c.closedAt < F) return;
+    const ov = nvo[c.n + '@' + F];
+    c.esNuevo = (ov !== undefined && ov !== null) ? !!ov : (c.foro === F);
     c.atraso = (!['cerrado','informativo'].includes(c.e) && pf(c.fp) && pf(c.fp) < F) ? dias(pf(c.fp), F) : 0;
     out.push(c);
   });
@@ -336,15 +402,15 @@ function curEstado(n){
 function setEstado(n, e){
   const cur = curEstado(n);
   if(cur === e) e = (e === 'informativo') ? 'pendiente' : 'informativo';  // doble clic -> informativo; informativo de nuevo -> pendiente
-  const m = read('est', {});
-  m[n] = {e, closedAt: e === 'cerrado' ? sel.value : null};
-  store('est', m); render();
+  storeKey('est', n, {e, closedAt: e === 'cerrado' ? sel.value : null});
+  render();
 }
 function delExtra(i){ const ex = read('extra', []); ex.splice(i, 1); store('extra', ex); render(); }
 function delComp(n, i){
   if(!confirm('¿Eliminar este compromiso de forma permanente?')) return;
   if(i !== undefined){ delExtra(i); return; }
-  const d = read('del', {}); d[n] = true; store('del', d); render();
+  storeKey('del', n, true);
+  render();
 }
 
 // ---------- agregar compromiso ----------
@@ -352,10 +418,7 @@ function toggleForm(){
   const f = document.getElementById('addForm');
   f.style.display = f.style.display === 'block' ? 'none' : 'block';
   if(f.style.display === 'block'){
-    document.getElementById('f_plist').innerHTML =
-      `<div class="addp" style="margin:0 0 8px; padding:0 0 8px; border-top:none; border-bottom:1px solid var(--zebra);"><input id="np_form" placeholder="✚ Agregar otro responsable…"><button type="button" onclick="newPerson('form')">+</button></div>` +
-      peopleList().map(p =>
-      `<label><input type="checkbox" value="${p}" onchange="updRespBox()">${p}</label>`).join('');
+    document.getElementById('f_plist').innerHTML = listHTML('form', []);
     updRespBox();
     document.getElementById('f_fp').value = '';
   }
@@ -366,12 +429,12 @@ function togglePlist(ev){
   pl.style.display = pl.style.display === 'block' ? 'none' : 'block';
 }
 function updRespBox(){
-  const v = [...document.querySelectorAll('#f_plist input[type=checkbox]:checked')].map(i => i.value);
+  const v = checkedOf('form');
   document.getElementById('f_respBox').textContent = v.length ? v.join(' / ') : 'Seleccionar…';
 }
 function addComp(){
   const t = document.getElementById('f_txt').value.trim();
-  const r = [...document.querySelectorAll('#f_plist input[type=checkbox]:checked')].map(i => i.value).join(' / ');
+  const r = checkedOf('form').join(' / ');
   if(!t){ alert('Escribe el compromiso'); return; }
   if(!r){ alert('Selecciona responsable(s)'); return; }
   const F = sel.value;
@@ -381,7 +444,6 @@ function addComp(){
            fp: ddmmaa(document.getElementById('f_fp').value), foro: F, e: 'pendiente'});
   store('extra', ex);
   document.getElementById('f_txt').value = '';
-  document.querySelectorAll('#f_plist input[type=checkbox]').forEach(i => i.checked = false); updRespBox();
   document.getElementById('addForm').style.display = 'none';
   render();
 }
@@ -394,29 +456,29 @@ function editComp(ev, n){
   const curResp = c.r.split('/').map(s => s.trim());
   const pop = document.getElementById('pop');
   pop.innerHTML =
-    `<div class="flab">Compromiso</div><textarea id="e_t">${c.t}</textarea>` +
-    `<div class="flab">Responsable(s)</div><div class="chk">` +
-    `<div class="addp" style="margin:0 0 8px; padding:0 0 8px; border-top:none; border-bottom:1px solid var(--zebra);"><input id="np_pop" placeholder="✚ Agregar otro responsable…"><button type="button" onclick="newPerson('pop')">+</button></div>` +
-    peopleList().map(p => `<label><input type="checkbox" value="${p}" ${curResp.includes(p) ? 'checked' : ''}>${p}</label>`).join('') +
-    `</div>` +
-    `<div class="flab">F. Inicio</div><input type="date" id="e_fi" value="${pf(c.fi) || ''}">` +
-    `<div class="flab">F. Plan</div><input type="date" id="e_fp" value="${pf(c.fp) || ''}">` +
+    `<span class="flab">Compromiso</span><textarea id="e_t">${esc(c.t)}</textarea>` +
+    `<span class="flab">Responsable(s)</span><div class="chk">` + listHTML('pop', curResp) + `</div>` +
+    `<span class="flab">F. Inicio</span><input type="date" id="e_fi" value="${pf(c.fi) || ''}">` +
+    `<span class="flab">F. Plan</span><input type="date" id="e_fp" value="${pf(c.fp) || ''}">` +
+    `<label style="margin-top:12px;"><input type="checkbox" id="e_nuevo" ${c.esNuevo ? 'checked' : ''} style="width:auto">` +
+    ` Destacar como <span class="badge-new" style="margin-left:2px;">NUEVO</span> en este foro</label>` +
     `<button class="okbtn" onclick="saveComp('${n}')">Guardar cambios</button>`;
   pop.style.display = 'block';
-  pop.style.minWidth = '300px';
-  pop.style.left = Math.min(ev.pageX / ZOOM - 150, window.innerWidth / ZOOM - 340) + 'px';
+  pop.style.minWidth = '310px';
+  pop.style.left = Math.min(ev.pageX / ZOOM - 150, window.innerWidth / ZOOM - 350) + 'px';
   pop.style.top = (ev.pageY / ZOOM + 10) + 'px';
 }
 function saveComp(n){
   const ddmmaa = iso => iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(2, 4) : null;
   const t = document.getElementById('e_t').value.trim();
-  const r = [...document.querySelectorAll('#pop .chk input[type=checkbox]:checked')].map(i => i.value).join(' / ');
+  const r = checkedOf('pop').join(' / ');
   const fi = ddmmaa(document.getElementById('e_fi').value);
   const fp = ddmmaa(document.getElementById('e_fp').value);
-  if(t){ const m = read('t', {}); m[n] = t; store('t', m); }
-  if(r){ const m = read('resp', {}); m[n] = r; store('resp', m); }
-  if(fi){ const m = read('fi', {}); m[n] = fi; store('fi', m); }
-  if(fp){ const m = read('fp', {}); m[n] = fp; store('fp', m); }
+  if(t) storeKey('t', n, t);
+  if(r) storeKey('resp', n, r);
+  if(fi) storeKey('fi', n, fi);
+  if(fp) storeKey('fp', n, fp);
+  storeKey('nuevo', n + '@' + sel.value, document.getElementById('e_nuevo').checked);
   document.getElementById('pop').style.display = 'none';
   render();
 }
